@@ -20,7 +20,7 @@
 
 
 net = require("net")
-udp = require('./udp')
+udpRelay = require('./udprelay')
 fs = require("fs")
 path = require("path")
 utils = require('./utils')
@@ -45,7 +45,7 @@ connections = 0
 
 createServer = (port, timeout)->
   
-  udpServer = udp.createServer(port, timeout)
+  udpRelay.createServer(port, timeout)
   
   server = net.createServer((connection) ->
     connections += 1
