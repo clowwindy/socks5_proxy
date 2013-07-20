@@ -5,6 +5,44 @@ inetNtoa = (buf) ->
 
 dgram = require 'dgram'
 
+class LRUCache
+  constructor: (@timeout, sweepInterval) ->
+    that = this
+    sweepFun = ->
+      that.sweep()
+    
+    @interval = setInterval(sweepFun, sweepInterval)
+    @dict = {}
+    
+  setItem: (key, value) ->
+    cur = process.hrtime()
+    @dict[key] = [value, cur]
+  
+  getItem: (key) ->
+    v = @dict[key]
+    if v
+      v[1] = process.hrtime()
+      return v[0]
+    return null
+  
+  delItem: (key) ->
+    delete @dict[key]
+  
+  sweep: ->
+    utils.debug "sweeping"
+    dict = @dict
+    keys = Object.keys(dict)
+    swept = 0
+    for k in keys
+      v = dict[k]
+      diff = process.hrtime(v[1])
+      if diff[0] > @timeout
+        swept += 1
+        v0 = v[0]
+        v0.close()
+        delete dict[k]
+    utils.debug "#{swept} keys swept"
+
 # +----+------+------+----------+----------+----------+
 # |RSV | FRAG | ATYP | DST.ADDR | DST.PORT |   DATA   |
 # +----+------+------+----------+----------+----------+
@@ -12,15 +50,14 @@ dgram = require 'dgram'
 # +----+------+------+----------+----------+----------+
 
 exports.createServer = (port, timeout) ->
-  # TODO close sockets after timeout if there is no traffic
   server = dgram.createSocket("udp4")
-  clients = {}
+  clients = new LRUCache(timeout, 10 * 1000)
   
   clientKey = (localAddr, localPort, remoteAddr, remotePort) ->
     return "#{localAddr}:#{localPort}:#{remoteAddr}:#{remotePort}"
 
   server.on("message", (data, rinfo) ->
-    console.log("server got: " + data + " from " + rinfo.address + ":" + rinfo.port)
+    console.error("server got: " + data + " from " + rinfo.address + ":" + rinfo.port)
     frag = data[2]
     utils.debug "frag:#{frag}"
     if frag != 0
@@ -49,11 +86,10 @@ exports.createServer = (port, timeout) ->
     utils.debug "UDP send to #{remoteAddr}:#{remotePort}"
     
     key = clientKey(rinfo.address, rinfo.port, remoteAddr, remotePort)
-    if clients[key]
-      client = clients[key]
-    else
+    client = clients.getItem(key)
+    if not client?
       client = dgram.createSocket("udp4")
-      clients[key] = client
+      clients.setItem(key, client)
     
       client.on "message", (data1, rinfo1) ->
         utils.debug "client got #{data1} from #{rinfo1.address}:#{rinfo1.port}"
@@ -66,9 +102,9 @@ exports.createServer = (port, timeout) ->
       
       client.on "close", ->
         utils.debug "close"
-        delete clients[key]
+        clients.delItem(key)
 
-    utils.debug "pairs: #{Object.keys(clients).length}"
+    utils.debug "pairs: #{Object.keys(clients.dict).length}"
 
     client.send data, headerLength, data.length - headerLength, remotePort, remoteAddr, (err, bytes) ->
       utils.debug "client to remote sent"
@@ -77,7 +113,7 @@ exports.createServer = (port, timeout) ->
   
   server.on("listening", ->
     address = server.address()
-    console.log("server listening " + address.address + ":" + address.port)
+    console.error("server listening " + address.address + ":" + address.port)
   ) 
   
   server.bind(port)
