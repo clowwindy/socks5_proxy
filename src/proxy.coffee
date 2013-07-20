@@ -75,6 +75,7 @@ createServer = (port, timeout)->
       if stage is 0
         tempBuf = new Buffer(2)
         tempBuf.write "\u0005\u0000", 0
+        console.log data
         connection.write tempBuf
         stage = 1
         utils.debug "stage = 1"
@@ -92,6 +93,11 @@ createServer = (port, timeout)->
           addrtype = data[3]
           if cmd is 1
             # TCP
+            # TODO
+            utils.error "unsupported cmd: " + cmd
+            reply = new Buffer("\u0005\u0007\u0000\u0001", "binary")
+            connection.end reply
+            return
           else if cmd is 3
             # UDP
             utils.info "UDP assc request from #{connection.localAddress}:#{connection.localPort}"
@@ -102,7 +108,6 @@ createServer = (port, timeout)->
             reply.writeUInt16BE connection.localPort, 8
             connection.write reply
             stage = 10
-            return
           else
             utils.error "unsupported cmd: " + cmd
             reply = new Buffer("\u0005\u0007\u0000\u0001", "binary")
@@ -127,6 +132,9 @@ createServer = (port, timeout)->
             remoteAddr = data.slice(5, 5 + addrLen).toString("binary")
             remotePort = data.readUInt16BE(5 + addrLen)
             headerLength = 5 + addrLen + 2
+          if cmd is 3
+            utils.info "UDP assc: #{remoteAddr}:#{remotePort}"
+            return
           buf = new Buffer(10)
           buf.write "\u0005\u0000\u0000\u0001", 0, 4, "binary"
           buf.write "\u0000\u0000\u0000\u0000", 4, 4, "binary"

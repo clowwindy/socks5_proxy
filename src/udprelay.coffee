@@ -1,8 +1,22 @@
 utils = require('./utils')
+inet = require('./inet')
 
 inetNtoa = (buf) ->
   buf[0] + "." + buf[1] + "." + buf[2] + "." + buf[3]
 
+inetAton = (ipStr) ->
+  parts = ipStr.split(".")
+  unless parts.length is 4
+    null
+  else
+    buf = new Buffer(4)
+    i = 0
+
+    while i < 4
+      buf[i] = +parts[i]
+      i++
+    buf
+  
 dgram = require 'dgram'
 
 class LRUCache
@@ -93,7 +107,13 @@ exports.createServer = (port, timeout) ->
     
       client.on "message", (data1, rinfo1) ->
         utils.debug "client got #{data1} from #{rinfo1.address}:#{rinfo1.port}"
-        data2 = Buffer.concat([data.slice(0, headerLength), data1])
+        ipBuf = inetAton(rinfo1.address)
+        header = new Buffer(10)
+        header.write('\x00\x00\x00\x01', 0)
+        ipBuf.copy(header, 4, 0, 4)
+        header.writeUInt16BE(rinfo1.port, 8)
+#        data2 = Buffer.concat([data.slice(0, headerLength), data1])
+        data2 = Buffer.concat([header, data1])
         server.send data2, 0, data2.length, rinfo.port, rinfo.address, (err, bytes) ->
           utils.debug "remote to client sent"
   
