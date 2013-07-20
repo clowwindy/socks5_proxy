@@ -14,6 +14,10 @@ dgram = require 'dgram'
 exports.createServer = (port, timeout) ->
   # TODO close sockets after timeout if there is no traffic
   server = dgram.createSocket("udp4")
+  clients = {}
+  
+  clientKey = (localAddr, localPort, remoteAddr, remotePort) ->
+    return "#{localAddr}:#{localPort}:#{remoteAddr}:#{remotePort}"
 
   server.on("message", (data, rinfo) ->
     console.log("server got: " + data + " from " + rinfo.address + ":" + rinfo.port)
@@ -44,15 +48,27 @@ exports.createServer = (port, timeout) ->
       headerLength = 5 + addrLen + 2
     utils.debug "UDP send to #{remoteAddr}:#{remotePort}"
     
-    client = dgram.createSocket("udp4")
-    client.on "message", (data1, rinfo1) ->
-      utils.debug "client got #{data1} from #{rinfo1.address}:#{rinfo1.port}"
-      data2 = Buffer.concat([data.slice(0, headerLength), data1])
-      server.send data2, 0, data2.length, rinfo.port, rinfo.address, (err, bytes) ->
-        utils.debug "remote to client sent"
+    key = clientKey(rinfo.address, rinfo.port, remoteAddr, remotePort)
+    if clients[key]
+      client = clients[key]
+    else
+      client = dgram.createSocket("udp4")
+      clients[key] = client
+    
+      client.on "message", (data1, rinfo1) ->
+        utils.debug "client got #{data1} from #{rinfo1.address}:#{rinfo1.port}"
+        data2 = Buffer.concat([data.slice(0, headerLength), data1])
+        server.send data2, 0, data2.length, rinfo.port, rinfo.address, (err, bytes) ->
+          utils.debug "remote to client sent"
+  
+      client.on "error", (err) ->
+        utils.debug "error: #{err}"
+      
+      client.on "close", ->
+        utils.debug "close"
+        delete clients[key]
 
-    client.on "error", (err) ->
-      utils.debug "error: #{err}"
+    utils.debug "pairs: #{Object.keys(clients).length}"
 
     client.send data, headerLength, data.length - headerLength, remotePort, remoteAddr, (err, bytes) ->
       utils.debug "client to remote sent"
