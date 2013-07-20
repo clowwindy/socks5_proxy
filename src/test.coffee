@@ -31,7 +31,7 @@ d.on 'message', (data, rinfo) ->
   
 d.bind(80)
 
-conn = net.connect(1080, "172.16.1.52", ->
+conn = net.connect(1081, "127.0.0.1", ->
   conn.write new Buffer("\x05\x02\x00\x01")
 )
 
