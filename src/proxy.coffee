@@ -93,11 +93,6 @@ createServer = (port, timeout)->
           addrtype = data[3]
           if cmd is 1
             # TCP
-            # TODO
-            utils.error "unsupported cmd: " + cmd
-            reply = new Buffer("\u0005\u0007\u0000\u0001", "binary")
-            connection.end reply
-            return
           else if cmd is 3
             # UDP
             utils.info "UDP assc request from #{connection.localAddress}:#{connection.localPort}"
