@@ -1,5 +1,5 @@
 {
-    "name": "socks5",
+    "name": "socks5-proxy",
     "description": "a socks5 proxy",
     "keywords": ["proxy", "socks5"],
     "author": "clowwindy",
