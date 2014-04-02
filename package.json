@@ -3,7 +3,7 @@
     "description": "a socks5 proxy",
     "keywords": ["proxy", "socks5"],
     "author": "clowwindy",
-    "version": "1.0",
+    "version": "1.0.0",
     "licenses": [{
         "type": "MIT",
         "url": "https://raw.github.com/clowwindy/socks5-proxy/master/LICENSE"
